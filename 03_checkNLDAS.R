@@ -1,35 +1,39 @@
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 library(tidyverse)
-files = list.files(pattern = '.csv')
 
-LakeName = 'Mendota'
+LakeName = 'Trout_Lake'
+Lake_Time_Zone <- 'CT' # One of ET, CT, MT, or PT
 cellNum = 6 #Number of cells
 box = 5 # Chosen cell
+date_seq = seq.POSIXt(as.POSIXct('2024-01-01 00:00:00',tz = 'GMT'),as.POSIXct('2024-01-07 23:00',tz='GMT'),by = 'hour')
+
+files = list.files(path = paste0(LakeName, "_Final"),pattern = '.csv')
 
 vars = c('PEVAPsfc_110_SFC_acc1h', 'DLWRFsfc_110_SFC', 'DSWRFsfc_110_SFC', 'CAPE180_0mb_110_SPDY',
          'CONVfracsfc_110_SFC_acc1h', 'APCPsfc_110_SFC_acc1h', 'SPFH2m_110_HTGL', 
          'VGRD10m_110_HTGL', 'UGRD10m_110_HTGL', 'TMP2m_110_HTGL', 'PRESsfc_110_SFC')
 vars <- c('PEVAP', 'DLWRF', 'DSWRF', 'CAPE', 'CONVfrac', 'APCP', 'SPFH', 'VGRD', 'UGRD', 'TMP','PRES')#,'SPFH')
-final.box = data.frame(dateTime = seq.POSIXt(as.POSIXct('2017-01-01 00:00:00',tz = 'GMT'),as.POSIXct('2020-12-31 23:00',tz='GMT'),by = 'hour'))
+final.box = data.frame(dateTime = date_seq)
 
 for (i in 1:11){
   fileIndx = grep(vars[i],files)
   
-  df = read_csv(files[fileIndx[1]]) %>% arrange(dateTime) # chronological order   # for (f in 2:length(fileIndx)){
+  df = read_csv(paste0(LakeName, "_Final/", files[fileIndx[1]])) %>% arrange(dateTime) # chronological order   # for (f in 2:length(fileIndx)){
   #   df2 = read.csv(files[fileIndx[f]])
   #   df = rbind(df,df2)
   # }
+  df = distinct(df)
   
   # Total time series
-  out = data.frame(dateTime = seq.POSIXt(as.POSIXct('2017-01-01 00:00:00',tz = 'GMT'),as.POSIXct('2020-12-31 23:00',tz='GMT'),by = 'hour'))
+  out = data.frame(dateTime = date_seq)
   
   missingDates = out %>% anti_join(df)
   nrow(missingDates) # Check for missing dates. 
   
   out = out %>% left_join(df)
   
-  write_csv(out,paste(LakeName,'_Final/',LakeName,'_2022_',vars[i],'.csv',sep=''))
+  write_csv(out,paste(LakeName,'_Final/',LakeName,'_processed_',vars[i],'.csv',sep=''))
   
   final.box[,i+1] = out[,box+1] 
 }
@@ -67,21 +71,33 @@ drivers <- final.box %>% dplyr::rename(PotentialEvap = PEVAP,
                 Rain.m_day = Precipitation*24/1000) %>% 
   dplyr::select(dateTime,AirTemp.C,ShortWave.W_m2,LongWave.W_m2,
                 SpecHumidity.kg_kg,RelHum,WindSpeed.m_s,Rain.m_day,SurfPressure.Pa)
-write.csv(drivers,paste0(LakeName,'_Final/',LakeName,'_1917_2019_box_',box,'_CT.csv'),row.names = F, quote = F)
+write.csv(drivers,paste0(LakeName,'_Final/',LakeName,'_all_variables_box_',box,'_GMT.csv'),row.names = F, quote = F)
 
 
-# Change time zone to Central Time 
+# Change time zone to local time
+if (Lake_Time_Zone == 'ET'){
+  minus_gmt <- 5
+} else if (Lake_Time_Zone == 'CT'){
+  minus_gmt <- 6
+} else if (Lake_Time_Zone == 'MT'){
+  minus_gmt <- 7
+} else if (Lake_Time_Zone == 'PT'){
+  minus_gmt <- 8
+} else {
+  stop("Invalid Time Zone")
+}
+
 library(lubridate)
-drivers_CT = drivers %>% mutate(dateTime = dateTime - hours(6))
-write.csv(drivers_CT,paste0(LakeName,'_Final/',LakeName,'_2017_2020_box_',box,'_CT.csv'),row.names = F, quote = F)
+drivers_CT = drivers %>% mutate(dateTime = dateTime - hours(minus_gmt))
+write.csv(drivers_CT,paste0(LakeName,'_Final/',LakeName,'_all_variables_box_',box,'_',Lake_Time_Zone,'.csv'),row.names = F, quote = F)
 # Check for duplicates 
 drivers_CT %>% 
   group_by(dateTime) %>% 
   filter(n()>1)
 
-plot(drivers$dateTime,drivers$Rain,type = 'l')
-plot(drivers$dateTime,drivers$ShortWave,type = 'l')
-plot(drivers$dateTime,drivers$AirTemp.C,type = 'l')
+# plot(drivers$dateTime,drivers$Rain,type = 'l')
+# plot(drivers$dateTime,drivers$ShortWave,type = 'l')
+# plot(drivers$dateTime,drivers$AirTemp.C,type = 'l')
 
 
 # Variable names for NLDAS2 forcing file:

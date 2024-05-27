@@ -10,30 +10,19 @@ library(RCurl)
 library(lubridate)
 library(raster)
 library(ncdf4)
-library(rgdal)
 library(httr)
 library(curl)
-
-###########################################################
-### Enter password information
-###########################################################
-#https://urs.earthdata.nasa.gov/profile <-- GET A EARTHDATA LOGIN
-your_username <- ''
-your_password <- ''
-###########################################################
-### Use shapefile of lake to set bounding box
-###########################################################
-# read in lake file to get bounding box
-lakeShape = st_read('ShapeFiles/LakeMendota.shp')
-extent = as.numeric(st_bbox(lakeShape))
-
-output_folder <- '~/Documents/DSI/Paul_PModel_NLDAS/MendotaRawData/'
+library(sf)
+library(stringr)
+library(lubridate)
 
 
 ###########################################################
 ### Set timeframe
 ###########################################################
-out = seq.POSIXt(as.POSIXct('2017-01-01 00:00:00',tz = 'GMT'),as.POSIXct('2020-12-31 23:00',tz='GMT'),by = 'hour')
+LakeName = "Trout_Lake"
+
+out = seq.POSIXt(as.POSIXct('2024-01-01 00:00:00',tz = 'GMT'),as.POSIXct('2024-01-06 23:00:00',tz='GMT'),by = 'hour')
 vars = c('PEVAPsfc_110_SFC_acc1h', 'DLWRFsfc_110_SFC', 'DSWRFsfc_110_SFC', 'CAPE180_0mb_110_SPDY',
          'CONVfracsfc_110_SFC_acc1h', 'APCPsfc_110_SFC_acc1h', 'SPFH2m_110_HTGL',
          'VGRD10m_110_HTGL', 'UGRD10m_110_HTGL', 'TMP2m_110_HTGL', 'PRESsfc_110_SFC')
@@ -63,26 +52,42 @@ for (l in 1:11){
 # Start the clock!
 ptm <- proc.time()
 
-for (i in 1:length(out)) {
-  print(out[i])
-  yearOut = year(out[i])
-  monthOut = format(out[i], "%m")
-  dayOut = format(out[i], "%d")
-  hourOut = format(out[i], "%H%M")
-  doyOut = format(out[i],'%j')
+path <- paste0(getwd(), "/output")
+files <- list.files(path = path)
 
-  filename = format(out[i], "%Y%m%d%H%M")
+for (i in 1:length(files)) {
+  #print(out[i])
+  filename <- files[i]
+  datetime <- make_datetime(year = as.numeric(str_sub(filename, 19, 22)), 
+                            month = as.numeric(str_sub(filename, 23, 24)), 
+                            day = as.numeric(str_sub(filename, 25, 26)), 
+                            hour = as.numeric(str_sub(filename, 28, 29)), 
+                            min = 00, 
+                            sec = 0, 
+                            tz = "GMT")
+  cat("\r", filename)
+  # yearOut = year(out[i])
+  # monthOut = format(out[i], "%m")
+  # dayOut = format(out[i], "%d")
+  # hourOut = format(out[i], "%H%M")
+  # doyOut = format(out[i],'%j')
+
+  #filename = format(out[i], "%Y%m%d%H%M")
+  filename2 <- paste0(path, "/", filename)
 
   for (v in 1:11) {
-    id <- nc_open(paste(output_folder, filename,'.nc',sep=''), readunlim=TRUE)
-    meteoVal <- ncvar_get(id, vars[v])
-    
-    # br = brick(paste('~/Documents/NLDAS2/MendotaRawData/',filename,'.nc',sep=''),varname = vars[v])
-    output[[v]][i,1] = out[i]
-    # output[[v]][i,-1] = getValues(br[[1]])
-    output[[v]][i,-1] = meteoVal
-    
-    nc_close(id)
+    # id <- nc_open(paste(output_folder, filename,'.nc',sep=''), readunlim=TRUE)
+    if (filename != "README.NLDAS2.pdf"){
+      id <- nc_open(filename2)
+      meteoVal <- ncvar_get(id, vars[v])
+      
+      # br = brick(paste('~/Documents/NLDAS2/MendotaRawData/',filename,'.nc',sep=''),varname = vars[v])
+      output[[v]][i,1] = datetime
+      # output[[v]][i,-1] = getValues(br[[1]])
+      output[[v]][i,-1] = meteoVal
+      
+      nc_close(id)
+    }
   }
   # rm(br)
 
@@ -93,16 +98,7 @@ proc.time() - ptm
 ###########################################################
 ### Save all 11 variables from the output list
 ###########################################################
+dir.create(paste0(LakeName,'_Final'), showWarnings = FALSE)
 for (f in 1:11){
-  write.csv(output[[f]],paste('Mendota_',vars[f],'.csv',sep=''),row.names=F)
+  write.csv(output[[f]],paste0(LakeName,'_Final/',LakeName,"_",vars[f],'.csv'),row.names=F)
 }
-
-
-###########################################################
-### Read 11 variables into output list
-###########################################################
-# for (f in 1:11){
-#   a = read_csv(paste('TroutLake_',vars[f],'.csv',sep=''))
-#   output[[f]] = a
-#   
-# }
