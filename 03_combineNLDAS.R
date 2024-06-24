@@ -1,4 +1,4 @@
-###########################################################
+  ###########################################################
 ### Downloading NLDAS2 data for meteorological hourly forcing
 ### http://ldas.gsfc.nasa.gov/nldas/NLDAS2forcing.php
 ### Author: Hilary Dugan (2019-09-30) & Bennett McAfee (2024-06-17)
@@ -103,15 +103,20 @@ for (directory in dir_list){
     for (v in 1:11) {
       # id <- nc_open(paste(output_folder, filename,'.nc',sep=''), readunlim=TRUE)
       if (filename != "README.NLDAS2.pdf"){
-        id <- nc_open(filename2)
-        meteoVal <- ncvar_get(id, vars[v])
+        id <- try(nc_open(filename2), silent = TRUE)
+        if (class(id) != 'try-error'){
+          meteoVal <- ncvar_get(id, vars[v])
+          
+          # br = brick(paste('~/Documents/NLDAS2/MendotaRawData/',filename,'.nc',sep=''),varname = vars[v])
+          output[[v]][i,1] = datetime
+          # output[[v]][i,-1] = getValues(br[[1]])
+          output[[v]][i,-1] = meteoVal
+          nc_close(id)
+        }else{
+          output[[v]][i,1] = datetime
+          output[[v]][i,-1] = NA
+        }
         
-        # br = brick(paste('~/Documents/NLDAS2/MendotaRawData/',filename,'.nc',sep=''),varname = vars[v])
-        output[[v]][i,1] = datetime
-        # output[[v]][i,-1] = getValues(br[[1]])
-        output[[v]][i,-1] = meteoVal
-        
-        nc_close(id)
       }
     }
     # rm(br)
