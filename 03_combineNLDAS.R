@@ -18,7 +18,14 @@ library(lubridate)
 
 LakeName = "Trout_Lake"
 
-dir_list <- list.dirs(path = paste0(getwd(), "/", LakeName, "_sorted"), recursive = FALSE)
+dir_list_0 <- list.dirs(path = paste0(getwd(), "/", LakeName, "_sorted"), recursive = FALSE)
+
+dir_list <- c()
+for (directory in dir_list_0){
+  if (!(paste0(directory, "/Final") %in% list.dirs(directory))){
+    dir_list[length(dir_list) + 1] <- directory
+  }
+}
 
 for (directory in dir_list){
   files <- list.files(path = directory)

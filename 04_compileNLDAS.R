@@ -122,7 +122,7 @@ for (directory in dir_list){
   
   library(lubridate)
   drivers_CT = drivers %>% mutate(dateTime = dateTime - hours(minus_gmt))
-  write.csv(drivers_CT,paste0(finaldir,"/",LakeName,"_",str_extract(directory, "[^/]+$"),'_all_variables_box_',box,'_GMT.csv'),row.names = F, quote = F)
+  write.csv(drivers_CT,paste0(finaldir,"/",LakeName,"_",str_extract(directory, "[^/]+$"),'_all_variables_box_',box,'_LT.csv'),row.names = F, quote = F)
   # Check for duplicates 
   drivers_CT %>% 
     group_by(dateTime) %>% 
